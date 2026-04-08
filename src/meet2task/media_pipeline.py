@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Пайплайн обработки медиа: транскрипция (Groq) + обработка (локальная LLM).
-Используется ботом и watcher'ом drop-директории.
+Пайплайн: транскрипция (Groq) + постобработка (локальная LLM).
 """
+
+from __future__ import annotations
 
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from config_loader import get_paths, get_ollama_config
-from pipeline_logger import get_logger
-from webm_to_txt import transcribe_audio, SUPPORTED_EXTENSIONS
-from localLLMmanager import LocalLLMManager
+from .config import get_ollama_config, get_paths
+from .local_llm_manager import LocalLLMManager
+from .logging_config import get_logger
+from .transcription import SUPPORTED_EXTENSIONS, transcribe_audio
 
 log = get_logger("media")
 
@@ -23,17 +24,6 @@ def process_media_file(
     language: str = "ru",
     output_path: Optional[str | Path] = None,
 ) -> Optional[Path]:
-    """
-    Обрабатывает медиафайл: транскрипция → LLM → сохранение в output.
-
-    Args:
-        media_path: Путь к аудио/видео (.webm, .mp4, .ogg и др.)
-        language: Язык аудио
-        output_path: Путь для .txt (если None — в output_dir с timestamp)
-
-    Returns:
-        Путь к сохранённому документу или None при ошибке
-    """
     path = Path(media_path)
     if not path.exists():
         print(f"Файл не найден: {path}", file=sys.stderr)
@@ -49,14 +39,12 @@ def process_media_file(
 
     log.info("Обработка медиа: %s", path)
     try:
-        # 1. Транскрипция
         log.info("Шаг 1: транскрипция Groq Whisper")
         transcription = transcribe_audio(path, language=language)
         if not transcription.strip():
             log.warning("Пустая транскрипция")
             return None
 
-        # 2. Обработка через локальную LLM
         log.info("Шаг 2: обработка локальной LLM (prompt: process_transcription)")
         ollama_cfg = get_ollama_config()
         manager = LocalLLMManager(
@@ -78,7 +66,6 @@ def process_media_file(
 
         raw_txt.unlink(missing_ok=True)
 
-        # 3. Сохранение
         log.info("Шаг 3: сохранение документа")
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         if output_path is None:
@@ -90,6 +77,6 @@ def process_media_file(
         log.info("Документ сохранён: %s", output_path)
         return output_path
 
-    except Exception as e:
+    except Exception:
         log.exception("Ошибка обработки %s", path)
         return None

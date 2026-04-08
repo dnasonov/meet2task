@@ -1,72 +1,90 @@
-# PipelineOpt
+# meet2task
 
-Модуль трансформации аудио (.webm и др.) в структурированный txt через Groq Whisper Large v3 Turbo и локальную LLM, работающий через Telegram-бот.
+Транскрипция аудио и видео в структурированный текст: **[Groq](https://groq.com) Whisper**, постобработка через **Ollama**, опционально — **Telegram-бот** для приёма файлов и ссылок (Яндекс.Диск / Google Drive для файлов больше лимита бота).
 
-## Компоненты
+## Возможности
 
-- **webm_to_txt.py** — транскрипция аудио через Groq Whisper Large v3 Turbo
-- **telegram_voice_bot.py** — Telegram-бот для приёма голосовых/видео/документов
-- **localLLMmanager.py** — обработка транскрипции локальной LLM (Ollama)
-- **prompt/process_transcription.txt** — промпт для обработки транскрипции
+- Транскрипция локальных файлов и по URL (Groq Whisper Large v3 Turbo).
+- Постобработка транскрипта локальной LLM по промпту из каталога `prompt/`.
+- Telegram-бот: голосовые, видео-заметки, документы; команды для реестра диалогов (SQLite в `data/`).
+- Наблюдатель каталога `drop/` для пакетной обработки.
+
+## Требования
+
+- Python **3.10+**
+- Ключ [Groq API](https://console.groq.com/keys), токен [Telegram Bot](https://t.me/BotFather) (для бота)
+- [Ollama](https://ollama.com) с выбранной моделью (для постобработки)
 
 ## Установка
+
+Клонируйте репозиторий и установите пакет в режиме разработки (код в `src/meet2task/`):
+
+```bash
+pip install -e .
+```
+
+Либо только зависимости:
 
 ```bash
 pip install -r requirements.txt
 ```
 
+Секреты и пути задаются в **`.env`** и **`config.yaml`** в **корне клона** (не внутри `src/`).
+
 ## Конфигурация
 
-1. Скопируйте `config.example.yaml` в `config.yaml` (пути, Ollama и т.д.).
-2. Секреты задайте в файле **`.env`** в корне проекта: скопируйте [`.env.example`](.env.example) в `.env` и укажите:
-   - **`GROQ_API_KEY`** — [Groq API Key](https://console.groq.com/keys)
-   - **`TELEGRAM_BOT_TOKEN`** — токен от [@BotFather](https://t.me/BotFather)
+1. Скопируйте `config.example.yaml` → `config.yaml`.
+2. Скопируйте `.env.example` → `.env` и укажите `GROQ_API_KEY` и `TELEGRAM_BOT_TOKEN` (для бота).
 
-   Альтернатива: те же значения можно прописать в `config.yaml` в `groq.api_key` и `telegram.bot_token` (файл не должен попадать в git).
+Переопределение каталога проекта (если запускаете скрипты не из корня репозитория):
 
-Переменные окружения `GROQ_API_KEY` и `TELEGRAM_BOT_TOKEN` переопределяют значения из `.env` и `config.yaml`.
+```bash
+set MEET2TASK_ROOT=D:\path\to\meet2task
+```
 
 ## Запуск
 
-### Telegram-бот
+После `pip install -e .` доступны команды:
+
+| Команда | Описание |
+|--------|----------|
+| `meet2task-bot` | Telegram-бот |
+| `meet2task-watch` | Наблюдение за `drop/` |
+| `meet2task-transcribe` | CLI транскрипции |
+
+Без установки пакета можно вызывать скрипты из корня репозитория (они подключают `src/`):
 
 ```bash
 python telegram_voice_bot.py
-```
-
-Отправьте боту голосовое сообщение, видео-заметку или документ (.webm, .ogg, .mp3, .wav).
-
-**Файлы больше 20 МБ (лимит Telegram):** в `config.yaml` включены `telegram.yandex_disk_from_url` и `telegram.google_drive_from_url`. Выложите файл на **Яндекс.Диск** или **Google Drive** с публичным доступом по ссылке и отправьте боту **одно сообщение со ссылкой**. Для **Google Drive** подойдёт ссылка на **файл** или на **папку** (берётся первый подходящий аудио/видео файл). Groq получит прямую ссылку и обойдёт лимит бота.
-
-Бот:
-1. Транскрибирует аудио через Groq Whisper
-2. Обработает текст локальной LLM (Ollama)
-3. Сохранит результат в `output/` и отправит вам
-
-### Требования
-
-- Ollama с моделью (например, `gpt-oss:20b`) запущен локально
-- Groq API ключ
-- Telegram Bot Token
-
-### Автообработка из drop-папки
-
-Положите видео/аудио в папку `drop/` (по умолчанию) и запустите:
-
-```bash
 python watch_drop.py
+python webm_to_txt.py audio.webm -o out.txt
 ```
 
-Скрипт будет опрашивать папку и автоматически обрабатывать новые файлы. Обработанные файлы перемещаются в `drop/processed/`.
+### Telegram
+
+Файлы **больше 20 МБ** (лимит Bot API): включите в `config.yaml` опции `telegram.yandex_disk_from_url` и `telegram.google_drive_from_url`, выложите файл на **Яндекс.Диск** или **Google Drive** с публичным доступом и отправьте боту **сообщение со ссылкой**.
+
+### Drop-папка
 
 ```bash
-python watch_drop.py -d /путь/к/папке   # другая директория
-python watch_drop.py --no-move          # не перемещать после обработки
+meet2task-watch
+meet2task-watch -d /путь/к/папке
+meet2task-watch --no-move
 ```
 
-### Только транскрипция (CLI)
+## Структура репозитория
 
-```bash
-python webm_to_txt.py audio.webm -o output.txt
-python webm_to_txt.py audio.webm --no-save  # только вывод в консоль
 ```
+src/meet2task/     # пакет Python
+  config.py        # загрузка config.yaml / .env
+  transcription.py # Groq Whisper
+  telegram_bot.py  # бот
+  ...
+prompt/            # промпты для Ollama
+config.example.yaml
+.env.example
+```
+
+## Лицензия
+
+MIT — см. [LICENSE](LICENSE).

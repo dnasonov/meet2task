@@ -4,17 +4,20 @@
 SQLite-реестр метаданных диалогов (дата, участники, ключевые поинты), привязка к ts из имён document_*.txt.
 """
 
+from __future__ import annotations
+
 import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 
+from .config import get_project_root
+
 _TS_RE = re.compile(r"^document_(\d{8}_\d{6})\.txt$")
 
 
 def get_db_path() -> Path:
-    base = Path(__file__).resolve().parent
-    d = base / "data"
+    d = get_project_root() / "data"
     d.mkdir(parents=True, exist_ok=True)
     return d / "dialogues.db"
 
@@ -42,9 +45,6 @@ def init_db() -> None:
 
 
 def parse_dialog_date(text: str) -> str | None:
-    """
-    Принимает YYYY-MM-DD или DD.MM.YYYY, возвращает YYYY-MM-DD или None.
-    """
     t = (text or "").strip()
     if not t:
         return None
@@ -57,10 +57,6 @@ def parse_dialog_date(text: str) -> str | None:
 
 
 def list_documents(output_dir: Path, limit: int = 25) -> list[dict]:
-    """
-    Список document_*.txt по времени изменения (новые первые).
-    Каждый элемент: ts, path, mtime, has_meta.
-    """
     init_db()
     output_dir = Path(output_dir)
     if not output_dir.is_dir():
@@ -155,7 +151,6 @@ def _read_head(path: Path, max_chars: int = 12000) -> str:
 
 
 def get_dialogue_paths_for_ts(output_dir: Path, ts: str) -> dict[str, Path | None]:
-    """Пути к полному тексту и обработанному документу для ts."""
     outp = Path(output_dir)
     return {
         "ts": ts,
@@ -173,14 +168,6 @@ def filter_dialogue_entries(
     has_meta_only: bool = False,
     limit: int = 50,
 ) -> list[dict]:
-    """
-    Список диалогов (по document_*.txt, новые первые) с применением фильтров (AND).
-
-    query — подстрока без учёта регистра в ts, начале document_*, dialogue_full_*,
-            полях метаданных (участники, поинты, дата строкой).
-    date_from / date_to — границы YYYY-MM-DD по dialog_date в БД; при указании любой
-            границы записи без метаданных отбрасываются.
-    """
     init_db()
     output_dir = Path(output_dir)
     if not output_dir.is_dir():

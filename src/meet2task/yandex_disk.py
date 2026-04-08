@@ -5,6 +5,8 @@
 Документация API: https://yandex.ru/dev/disk/api/reference/public.html
 """
 
+from __future__ import annotations
+
 import os
 import re
 import tempfile
@@ -14,7 +16,6 @@ from urllib.parse import unquote, urlparse
 
 import requests
 
-# Аудио/видео для Whisper
 AUDIO_EXT = (".mp3", ".m4a", ".ogg", ".opus", ".wav", ".flac", ".webm", ".mp4", ".mpeg")
 
 YANDEX_URL_RE = re.compile(
@@ -24,7 +25,7 @@ YANDEX_URL_RE = re.compile(
 
 API_BASE = "https://cloud-api.yandex.net/v1/disk/public/resources"
 SESSION = requests.Session()
-SESSION.headers.setdefault("User-Agent", "PipelineOpt/1.0")
+SESSION.headers.setdefault("User-Agent", "meet2task/0.1 (Groq transcription)")
 
 
 def extract_yandex_public_url(text: str) -> Optional[str]:
@@ -37,7 +38,6 @@ def extract_yandex_public_url(text: str) -> Optional[str]:
 
 
 def _download_href(public_key: str, path: str = "") -> str:
-    """GET .../download → поле href."""
     params = {"public_key": public_key}
     if path:
         params["path"] = path
@@ -61,24 +61,16 @@ def _list_public_folder(public_key: str, path: str = "/") -> list[dict]:
 
 
 def yandex_public_to_direct_download_url(public_url: str) -> str:
-    """
-    Превращает публичную ссылку Яндекс.Диска во временную прямую ссылку (href),
-    которую можно передать в Groq Whisper как url=.
-
-    Поддерживается публикация одного файла или папки (берётся первый подходящий аудио/видео файл).
-    """
     public_key = (public_url or "").strip()
     if not public_key.startswith("http"):
         raise ValueError("Нужна полная ссылка https://disk.yandex.ru/...")
 
-    # 1) Прямая попытка (один опубликованный файл)
     try:
         return _download_href(public_key)
     except requests.HTTPError as e:
         code = e.response.status_code if e.response is not None else 0
         if code not in (400, 404):
             raise
-    # 2) Папка: ищем первый аудио/видео файл
     items = _list_public_folder(public_key, "/")
     candidates: list[tuple[str, str]] = []
     for it in items:
@@ -97,7 +89,6 @@ def yandex_public_to_direct_download_url(public_url: str) -> str:
 
 
 def _suffix_from_download(r: requests.Response, href: str) -> str:
-    """Расширение временного файла по Content-Disposition / URL / Content-Type."""
     disp = r.headers.get("content-disposition") or ""
     for pat in (
         r"filename\*=UTF-8''([^;\s]+)",
@@ -123,12 +114,6 @@ def _suffix_from_download(r: requests.Response, href: str) -> str:
 
 
 def yandex_public_download_to_temp(public_url: str) -> Path:
-    """
-    Скачивает публичный файл во временный путь.
-
-    Ссылку href от API нельзя отдавать в Groq url= — downloader.disk.yandex.ru часто отвечает 302,
-    а сервер Groq редиректы не обрабатывает. Локальное скачивание с allow_redirects=True решает это.
-    """
     href = yandex_public_to_direct_download_url(public_url)
     path: Optional[Path] = None
     r = SESSION.get(href, timeout=600, stream=True, allow_redirects=True)

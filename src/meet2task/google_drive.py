@@ -5,6 +5,8 @@
 Groq при url= не следует за редиректами Google (303) — для транскрипции файл скачивается локально.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import shutil
@@ -17,11 +19,10 @@ import requests
 from gdown.exceptions import FileURLRetrievalError
 
 SESSION = requests.Session()
-SESSION.headers.setdefault("User-Agent", "PipelineOpt/1.0 (Groq transcription)")
+SESSION.headers.setdefault("User-Agent", "meet2task/0.1 (Groq transcription)")
 
 
 def extract_google_drive_file_id(text: str) -> Optional[str]:
-    """Извлекает ID файла из текста сообщения."""
     if not text:
         return None
     patterns = [
@@ -37,7 +38,6 @@ def extract_google_drive_file_id(text: str) -> Optional[str]:
 
 
 def extract_google_drive_folder_id(text: str) -> Optional[str]:
-    """ID публичной папки: .../drive/folders/ID или .../drive/u/N/folders/ID"""
     if not text:
         return None
     patterns = [
@@ -51,16 +51,19 @@ def extract_google_drive_folder_id(text: str) -> Optional[str]:
 
 
 AUDIO_EXT_PREFERENCE = (
-    ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".webm", ".mp4", ".mpeg", ".flac",
+    ".mp3",
+    ".m4a",
+    ".ogg",
+    ".opus",
+    ".wav",
+    ".webm",
+    ".mp4",
+    ".mpeg",
+    ".flac",
 )
 
 
 def google_drive_folder_first_file_id(folder_id: str) -> str:
-    """
-    Публичная папка Google Drive → ID первого подходящего файла (gdown парсит HTML).
-    """
-    import gdown
-
     files = gdown.download_folder(
         id=folder_id.strip(),
         skip_download=True,
@@ -79,10 +82,6 @@ def google_drive_folder_first_file_id(folder_id: str) -> str:
 
 
 def resolve_google_drive_file_id_from_text(text: str) -> Optional[str]:
-    """
-    Ссылка на файл или на папку → ID файла для скачивания.
-    Сначала прямой файл, иначе первая запись в папке.
-    """
     fid = extract_google_drive_file_id(text)
     if fid:
         return fid
@@ -93,9 +92,6 @@ def resolve_google_drive_file_id_from_text(text: str) -> Optional[str]:
 
 
 def google_drive_to_direct_download_url(file_id: str) -> str:
-    """
-    URL для сценариев, где клиент сам следует редиректам (не Groq url=).
-    """
     file_id = (file_id or "").strip()
     if not re.match(r"^[a-zA-Z0-9_-]{10,}$", file_id):
         raise ValueError("Некорректный ID файла Google Drive")
@@ -123,18 +119,12 @@ def google_drive_to_direct_download_url(file_id: str) -> str:
 
 
 def google_drive_download_file_to_temp(file_id: str) -> Path:
-    """
-    Скачивает публичный файл через gdown (как браузер: формы confirm, большие файлы).
-
-    Простой requests+confirm не хватает — Google отдаёт HTML с формой, не только ?confirm=.
-    """
     file_id = (file_id or "").strip()
     if not re.match(r"^[a-zA-Z0-9_-]{10,}$", file_id):
         raise ValueError("Некорректный ID файла Google Drive")
 
     tmpdir = tempfile.mkdtemp(prefix="gdrive_dl_")
     try:
-        # output=.../ — имя файла берётся из ответа (Content-Disposition)
         out = gdown.download(
             id=file_id,
             output=tmpdir + os.sep,

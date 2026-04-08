@@ -1,24 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Клиент для работы с локальными LLM (Ollama).
-Конфигурация загружается из config.yaml через config_loader.
+Клиент для локальных LLM (Ollama). Конфигурация из config.yaml.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional
 
 import requests
 
-try:
-    from config_loader import load_config, get_ollama_config
-except ImportError:
-    load_config = get_ollama_config = None
+from .config import get_ollama_config
 
 
 @dataclass
 class LocalLLMConfig:
-    """Конфигурация локальной LLM."""
     backend: str = "ollama"
     ollama_url: str = "http://localhost:11434/api/generate"
     ollama_model: str = "gpt-oss:20b"
@@ -30,12 +27,6 @@ class LocalLLMConfig:
 
 
 def load_local_llm_config() -> LocalLLMConfig:
-    """
-    Загружает конфигурацию Ollama из config.yaml.
-    """
-    if get_ollama_config is None:
-        return LocalLLMConfig()
-
     cfg = get_ollama_config()
     return LocalLLMConfig(
         backend="ollama",
@@ -59,18 +50,6 @@ class LocalLLMClient:
         temperature: Optional[float] = None,
         num_ctx: Optional[int] = None,
     ) -> Optional[str]:
-        """
-        Генерирует ответ от Ollama.
-
-        Args:
-            prompt: Текст промпта
-            system_prompt: Системный промпт (опционально)
-            temperature: Температура (переопределяет конфиг)
-            num_ctx: Размер контекста (переопределяет конфиг)
-
-        Returns:
-            Сгенерированный текст или None при ошибке
-        """
         temp = temperature if temperature is not None else self.config.temperature
         ctx = num_ctx if num_ctx is not None else self.config.num_ctx
 

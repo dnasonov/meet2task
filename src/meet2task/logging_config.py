@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Централизованное логирование в <date_timestamp>.log
+Логирование в каталог logs/ (файл с меткой времени).
 """
+
+from __future__ import annotations
 
 import logging
 from datetime import datetime
@@ -22,10 +24,11 @@ def setup_logging(log_dir: Path | None = None) -> Path:
 
     if log_dir is None:
         try:
-            from config_loader import get_paths
-            log_dir = get_paths().get("logs_dir", Path(__file__).resolve().parent / "logs")
+            from .config import get_paths
+
+            log_dir = get_paths().get("logs_dir", Path(__file__).resolve().parents[2] / "logs")
         except Exception:
-            log_dir = Path(__file__).resolve().parent / "logs"
+            log_dir = Path(__file__).resolve().parents[2] / "logs"
     log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
 
