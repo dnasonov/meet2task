@@ -1,0 +1,23 @@
+# Пример конфигурации PipelineOpt
+# Скопируйте в config.yaml. Секреты удобнее задать в .env (см. .env.example).
+
+groq:
+  api_key: ""  # или только в .env: GROQ_API_KEY
+  max_file_size_mb: 25         # 25 free tier, 100 dev tier
+
+telegram:
+  bot_token: ""  # или только в .env: TELEGRAM_BOT_TOKEN
+  yandex_disk_from_url: true   # большие файлы: публичная ссылка Яндекс.Диска
+  google_drive_from_url: true # то же для Google Drive
+
+ollama:
+  url: "http://localhost:11434/api/generate"
+  model: "gpt-oss:20b"
+  timeout: 120
+
+paths:
+  prompts_dir: "prompt"
+  output_dir: "output"
+  temp_dir: "temp"
+  drop_dir: "drop"   # Папка для автообработки — кладите сюда видео/аудио
+  logs_dir: "logs"   # Лог-файлы <YYYYMMDD_HHMMSS>.log
