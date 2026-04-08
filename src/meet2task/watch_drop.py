@@ -95,7 +95,3 @@ def main() -> None:
     drop_dir = Path(args.dir) if args.dir else paths["drop_dir"]
 
     watch_drop_dir(drop_dir, language=args.language, move_after=not args.no_move)
-
-
-if __name__ == "__main__":
-    main()

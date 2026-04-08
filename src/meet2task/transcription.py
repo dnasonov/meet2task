@@ -350,7 +350,3 @@ def main() -> None:
         log.exception("Ошибка транскрипции")
         print(f"Ошибка: {e}", file=sys.stderr)
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
