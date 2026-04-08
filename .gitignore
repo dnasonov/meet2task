@@ -9,3 +9,5 @@ output/
 drop/
 logs/
 *.log
+data/
+results/
